@@ -53,6 +53,7 @@ test = "pytest"
 
 [tool.pixi.dependencies]
 python = ">=3.11"
+geoalchemy2 = ">=0.17.1,<0.18"
 
 # [tool.pixi.feature.diagram.tasks]
 # diagram = "python -m py2puml"
