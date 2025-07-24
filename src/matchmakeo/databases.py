@@ -1,7 +1,7 @@
 from abc import ABC
 
 from sqlalchemy import create_engine
-from geoalchemy
+from geoalchemy2 import Geometry
 
 from matchmakeo.utils import setUpLogging
 
