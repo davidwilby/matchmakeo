@@ -86,10 +86,25 @@ class NasaCMR(Catalogue):
             }
 
             if self.queryset.version:
-                params = params.update({
-                    "version": self.queryset.version
-                })
+                params.update({"version": self.queryset.version})
 
+            if getattr(self.queryset, "concept_id", None):
+                params.update(self.queryset.concept_id)
+
+            # if there is a previous response, check for additional available pagesm
+            # as recommended by CMR https://wiki.earthdata.nasa.gov/display/CMR/CMR+Harvesting+Best+Practices
+            if 'response' in locals():
+
+                # if previous response has CMR-Search-After header, add details to request headers
+                if response.headers.get("CMR-Search-After"):
+                    params = params.update({
+                        "CMR-Search-After": response.headers.get("CMR-Search-After")
+                    })
+
+                else:
+                # if there is a previous response and does not have CMR-Search-After header, there is no more data
+                    more_data = False
+            
             # Request granule metadata
             response = requests.get(self.url, params=params)
 
@@ -136,4 +151,4 @@ class NasaCMR(Catalogue):
             json.dump(geojson, f)
 
 
-        print(f"MODIS footprints saved {date} in {page_num} steps")
+        # print(f"MODIS footprints saved {date} in {page_num} steps")

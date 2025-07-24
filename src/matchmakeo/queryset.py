@@ -17,3 +17,4 @@ class NasaCMRQueryset(Queryset):
     
     short_name: str
     version: str = None
+    concept_id: str
