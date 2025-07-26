@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import date, timedelta
 import json
 from pathlib import Path
-from tempfile import TemporaryDirectory, TemporaryFile
+from tempfile import TemporaryFile
 
 import requests
 
@@ -13,20 +13,41 @@ from .utils import setUpLogging
 
 log = setUpLogging(__name__)
 
+
+__all__ = [
+    "Catalogue",
+    "NasaCMR",
+]
+
 class Catalogue(ABC):
 
-    @abstractmethod
     def download(self,
                 product: Product,
                 queryset: Queryset,
-                data_dir: str | Path = TemporaryDirectory(),
+                download_to_file:bool = False,
+                download_to_db:bool = True,
+                insert_into_db:bool = True,
                 ):
         
         self.product = product
         self.queryset = queryset
 
+        if download_to_file:
+            self.download_to_file(product, queryset)
+
+            if insert_into_db:
+                self.insert_into_db()
+        
+        if download_to_db:
+            self.download_to_file(product, queryset)
+
+
     @abstractmethod
-    def insert_db(self,
+    def download_to_file(product, queryset):
+        return
+        
+
+    def insert_into_db(self,
                 db_connection: DatabaseConnection,
                 table:str,
                 primary_key:str = "id",
@@ -56,11 +77,14 @@ class NasaCMR(Catalogue):
             client_id(str): Client ids are strongly encouraged by NASA CMR, we suggest using your name or research group.
         """
 
-    def download(self,
-                 *args,
-                 **kwargs
+    def download_to_db(self):
+        raise NotImplementedError
+    
+    def insert_into_db(self, db_connection, table, primary_key = "id"):
+        raise NotImplementedError
+
+    def download_to_file(self,
                  ):
-        super().download(*args, **kwargs)
 
         # TODO refactor to use warnings like this for all catalogues
         if type(self.queryset) is not NasaCMRQueryset:
@@ -141,14 +165,13 @@ class NasaCMR(Catalogue):
                         "properties": props
                     })
 
-        if not geojson["features"]:
-            print(f"No footprints found for {date}")
-            return
+            if not geojson["features"]:
+                print(f"No footprints found for {date}")
+                return
 
-
-        # Save as GeoJSON file
-        with open(TemporaryFile(dir=self.data_dir, suffix=".geojson"), "w") as f:
-            json.dump(geojson, f)
+            # Save as GeoJSON file
+            with open(TemporaryFile(dir=self.data_dir, suffix=".geojson"), "w") as f:
+                json.dump(geojson, f)
 
 
         # print(f"MODIS footprints saved {date} in {page_num} steps")

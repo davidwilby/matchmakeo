@@ -809,12 +809,12 @@ packages:
 - pypi: ./
   name: matchmakeo
   version: 0.1.0
-  sha256: 6a269cd7bf0e9184d8a245e9f805eba189442499b2c6b72aca899fb5dd74ebf3
+  sha256: 3ab264c7ac698318733b8dd218cc49001d12063f3fb27f72a4f03ff047708170
   requires_dist:
   - requests>=2.32.3,<3
   - sqlalchemy
-  - geoalchemy2
-  - geopandas
+  - geoalchemy2>=0.18.0,<0.19
+  - geopandas>=1.1.1,<2
   - cdsapi ; extra == 'cds'
   - earthengine-api ; extra == 'earthengine'
   - psycopg[binary]>3 ; extra == 'postgis'
