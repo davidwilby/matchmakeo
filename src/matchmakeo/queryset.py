@@ -21,5 +21,4 @@ class NasaCMRQueryset(Queryset):
     "Extends the base Queryset with parameters specific to NASA CMR queries."
     
     short_name: str
-    concept_id: str
     version: str = None

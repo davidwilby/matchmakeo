@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import json
 from pathlib import Path
+import os
 from tempfile import TemporaryFile
 
 import requests
@@ -67,15 +68,18 @@ class NasaCMR(Catalogue):
     """
 
     def __init__(self,
-                 client_id: str,
+                 client_id: str = None,
                  url:str = "https://cmr.sit.earthdata.nasa.gov/search/granules.json", #"https://cmr.earthdata.nasa.gov/search/granules.json",
                  ):
-        super().__init__()
-
         """_summary_
         Params:
             client_id(str): Client ids are strongly encouraged by NASA CMR, we suggest using your name or research group.
         """
+
+        super().__init__()
+
+        if client_id is None:
+            log.warning("No client_id set. Client ids are strongly encouraged by NASA CMR, we suggest using your name or research group's name, for example.")
 
     def download_to_db(self):
         raise NotImplementedError
@@ -84,14 +88,56 @@ class NasaCMR(Catalogue):
         raise NotImplementedError
 
     def download_to_file(self,
+                         product: Product,
+                         queryset: Queryset,
                  ):
 
         # TODO refactor to use warnings like this for all catalogues
-        if type(self.queryset) is not NasaCMRQueryset:
+        if type(queryset) is not NasaCMRQueryset:
             raise UserWarning(f"For NasaCMR request, queryset of type NasaCMRQueryset is advised. Got {type(self.queryset)} instead. Some features may not work as intended.")
         
+        data_dir = product.data_dir
 
-        next_day = self.queryset + timedelta(days=1)
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir, exist_ok=True)
+
+
+        # Iterate through years and months
+        for year in range(queryset.start_year, queryset.end_year + 1):
+            for month in range(1, 13):
+                for day in range(1, 32):
+                    try:
+                        current_date = datetime(year, month, day)
+                    except ValueError:
+                        continue
+
+                    if current_date > datetime.now():
+                        continue
+
+                    if datetime(year, month, 1) > current_date:
+                        continue
+
+                    # no data at start of project
+                    if year < 2000: # or (year == 2002 and month < 5):
+                        continue
+
+                    out_file = f"{data_dir}/modis_footprints_{current_date.year}_{current_date.month}_{current_date.day}.geojson"
+
+                    if os.path.exists(out_file):
+                        print(f"File {out_file} already exists, skipping")
+                        continue
+
+                    self._download_single_date(product=product, queryset=queryset, date=current_date, out_file=out_file)
+
+
+    def _download_single_date(self,
+                              product: Product,
+                              queryset: Queryset,
+                              date: date,
+                              out_file: str |  Path,
+                              ):
+        
+        next_day = queryset.start_year + timedelta(days=1)
 
         more_data = True
 
@@ -104,15 +150,15 @@ class NasaCMR(Catalogue):
         while more_data:
             # Query parameters
             params = {
-                "short_name": self.queryset.shortname, #"MOD021KM",  #  MOD021KM - terra (original download in ~April) /  Use MYD021KM - Aqua (new download in May)
-                "page_size": self.queryset.page_size,
+                "short_name": product.shortname, #"MOD021KM",  #  MOD021KM - terra (original download in ~April) /  Use MYD021KM - Aqua (new download in May)
+                "page_size": queryset.page_size,
                 'temporal': f"{date.strftime('%Y-%m-%d')}T00:00:00Z,{next_day.strftime('%Y-%m-%d')}T00:00:00Z"
             }
 
-            if self.queryset.version:
+            if queryset.version:
                 params.update({"version": self.queryset.version})
 
-            if getattr(self.queryset, "concept_id", None):
+            if getattr(queryset, "concept_id", None):
                 params.update(self.queryset.concept_id)
 
             # if there is a previous response, check for additional available pagesm
@@ -174,4 +220,3 @@ class NasaCMR(Catalogue):
                 json.dump(geojson, f)
 
 
-        # print(f"MODIS footprints saved {date} in {page_num} steps")
