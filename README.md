@@ -1,5 +1,7 @@
 # `matchmakeo`
 
+**Alpha** - this project is in the early stages of development and should be considered unstable.
+
 `matchmakeo` (*match-make-EE-OH*, [*mæʧ meɪk ee əʊ*]) is a python package to help with finding related earth observation data from two or more different sources. For example, if you wanted to find images from Sentinel-1 and MODIS of overlapping locations that were taken within 1 hour of each other.
 
 ## Get started
