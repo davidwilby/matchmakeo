@@ -9,7 +9,9 @@ requires-python = ">= 3.11"
 version = "0.1.0"
 dependencies = [
     "requests>=2.32.3,<3",
-    "sqlalchemy", "geoalchemy2>=0.18.0,<0.19", "geopandas>=1.1.1,<2",
+    "sqlalchemy",
+    "geoalchemy2>=0.18.0,<0.19",
+    "geopandas>=1.1.1,<2",
     ]
 
 # [project.urls]
@@ -34,26 +36,3 @@ docs = ["mkdocs"]
 test = ["pytest"]
 dev = ["ruff"]
 diagram = ["py2puml"]
-
-[tool.pixi.workspace]
-channels = ["conda-forge"]
-platforms = ["linux-64", "win-64"]
-
-[tool.pixi.pypi-dependencies]
-matchmakeo = { path = ".", editable = true }
-
-[tool.pixi.environments]
-test = ["test"]
-dev = {features = ["test", "docs"], solve-group = "default"}
-# diagram = {features = ["diagram"], solve-group = "diagram"}
-
-
-[tool.pixi.feature.test.tasks]
-test = "pytest"
-
-[tool.pixi.dependencies]
-python = ">=3.11"
-
-# [tool.pixi.feature.diagram.tasks]
-# diagram = "python -m py2puml"
-
