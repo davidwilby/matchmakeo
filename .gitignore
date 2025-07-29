@@ -1,5 +1,8 @@
 notes.md
 
+#
+.vscode/*
+
 # pixi environments
 .pixi
 *.egg-info
