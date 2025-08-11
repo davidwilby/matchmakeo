@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import os
 from tempfile import TemporaryFile
+import warnings
 
 import requests
 
@@ -65,9 +66,10 @@ class NasaCMR(Catalogue):
             log.warning("No client_id set. Client ids are strongly encouraged by NASA CMR, we suggest using your name or research group's name, for example.")
 
     def download(self,
-                         product: Product,
-                         queryset: Queryset,
-                 ):
+                product: Product,
+                queryset: Queryset,
+                database: Database,
+                ):
 
         self._check_queryset_type(queryset=queryset)
        
@@ -99,20 +101,15 @@ class NasaCMR(Catalogue):
             if year < 2000: # or (year == 2002 and month < 5):
                 continue
 
-            out_file = f"{data_dir}/modis_footprints_{current_date.year}_{current_date.month}_{current_date.day}.geojson"
-
-            # if os.path.exists(out_file):
-            #     print(f"File {out_file} already exists, skipping")
-            #     continue
-
-            self._download_single_date(product=product, queryset=queryset, date=current_date, out_file=out_file)
+            granules = self._download_single_date(product=product, queryset=queryset, date=current_date)
+            log.info(f"{len(granules)} found for {current_date}")
+            print(granules)
 
 
     def _download_single_date(self,
                               product: Product,
                               queryset: Queryset,
                               date: date,
-                              out_file: str |  Path,
                               ):
         
         next_day = date + timedelta(days=1)
@@ -169,6 +166,7 @@ class NasaCMR(Catalogue):
 
             more_data = len(granules["feed"]["entry"]) > 0
 
+            granules = []
             for g in granules["feed"]["entry"]:
 
                 coords = None
@@ -182,22 +180,22 @@ class NasaCMR(Catalogue):
                     if not prop in ["polygons"]:
                         props[prop] = g[prop]
 
-                if coords:
-                    geojson["features"].append({
-                        "type": "Feature",
-                        "geometry": {
-                            "type": "Polygon",
-                            "coordinates": coords
-                        },
-                        "properties": props
-                    })
+                # if coords:
+                #     geojson["features"].append({
+                #         "type": "Feature",
+                #         "geometry": {
+                #             "type": "Polygon",
+                #             "coordinates": coords
+                #         },
+                #         "properties": props
+                #     })
+
+                granules.append((coords, props))
 
             if not geojson["features"]:
                 print(f"No footprints found for {date}")
                 return
-
-            # Save as GeoJSON file
-            with open(out_file, "w") as f:
-                json.dump(geojson, f)
+            
+            return granules
 
 
