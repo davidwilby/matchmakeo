@@ -9,5 +9,6 @@ __all__ = [
 @dataclass
 class Product:
 
+    short_name: str
     data_dir: str | Path = TemporaryDirectory(),
 

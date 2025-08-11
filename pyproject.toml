@@ -33,7 +33,9 @@ earthengine = ["earthengine-api"]
 postgis = ["psycopg[binary]>3"]
 spatialite = ["spatialite"]
 docs = ["mkdocs"]
-test = ["pytest"]
+test = [
+    "pytest",
+]
 dev = [
     "pre-commit>=4.3.0",
     "ruff",

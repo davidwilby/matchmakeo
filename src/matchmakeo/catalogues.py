@@ -7,7 +7,7 @@ from tempfile import TemporaryFile
 
 import requests
 
-from .databases import DatabaseConnection
+from .databases import Database
 from .product import Product
 from .queryset import Queryset, NasaCMRQueryset
 from .utils import setUpLogging
@@ -22,44 +22,27 @@ __all__ = [
 
 class Catalogue(ABC):
 
+    def __init__(self, url, queryset_type: Queryset = None):
+        self.url = url
+        
+        if queryset_type:
+            self.queryset_type = queryset_type
+
     def download(self,
                 product: Product,
                 queryset: Queryset,
+                db_connection: Database,
+                table:str,
                 download_to_file:bool = False,
                 download_to_db:bool = True,
                 insert_into_db:bool = True,
-                ):
-        
-        self.product = product
-        self.queryset = queryset
-
-        if download_to_file:
-            self.download_to_file(product, queryset)
-
-            if insert_into_db:
-                self.insert_into_db()
-        
-        if download_to_db:
-            self.download_to_file(product, queryset)
-
-
-    @abstractmethod
-    def download_to_file(product, queryset):
-        return
-        
-
-    def insert_into_db(self,
-                db_connection: DatabaseConnection,
-                table:str,
                 primary_key:str = "id",
                 ):
-        
-        data_dir = self.data_dir
-
-        # if not table:
-            # if no table name specified, generate one
-
-
+        pass
+    
+    def _check_queryset_type(self, queryset:Queryset):
+        if type(queryset) is not self.QuerysetType:
+            raise UserWarning(f"Queryset of type {self.queryset_type} is advised. Got {type(self.queryset)} instead. Some features may not work as intended.")
 
 
 class NasaCMR(Catalogue):
@@ -70,32 +53,25 @@ class NasaCMR(Catalogue):
     def __init__(self,
                  client_id: str = None,
                  url:str = "https://cmr.sit.earthdata.nasa.gov/search/granules.json", #"https://cmr.earthdata.nasa.gov/search/granules.json",
+                 queryset_type: Queryset = NasaCMRQueryset,
                  ):
         """_summary_
         Params:
             client_id(str): Client ids are strongly encouraged by NASA CMR, we suggest using your name or research group.
         """
 
-        super().__init__()
+        super().__init__(url=url, queryset_type=queryset_type)
 
         if client_id is None:
             log.warning("No client_id set. Client ids are strongly encouraged by NASA CMR, we suggest using your name or research group's name, for example.")
 
-    def download_to_db(self):
-        raise NotImplementedError
-    
-    def insert_into_db(self, db_connection, table, primary_key = "id"):
-        raise NotImplementedError
-
-    def download_to_file(self,
+    def download(self,
                          product: Product,
                          queryset: Queryset,
                  ):
 
-        # TODO refactor to use warnings like this for all catalogues
-        if type(queryset) is not NasaCMRQueryset:
-            raise UserWarning(f"For NasaCMR request, queryset of type NasaCMRQueryset is advised. Got {type(self.queryset)} instead. Some features may not work as intended.")
-        
+        self._check_queryset_type(queryset=queryset)
+       
         data_dir = product.data_dir
 
         if not os.path.exists(data_dir):
@@ -118,14 +94,15 @@ class NasaCMR(Catalogue):
                         continue
 
                     # no data at start of project
+                    # TODO: is this universal for this catalogue?
                     if year < 2000: # or (year == 2002 and month < 5):
                         continue
 
                     out_file = f"{data_dir}/modis_footprints_{current_date.year}_{current_date.month}_{current_date.day}.geojson"
 
-                    if os.path.exists(out_file):
-                        print(f"File {out_file} already exists, skipping")
-                        continue
+                    # if os.path.exists(out_file):
+                    #     print(f"File {out_file} already exists, skipping")
+                    #     continue
 
                     self._download_single_date(product=product, queryset=queryset, date=current_date, out_file=out_file)
 
@@ -137,7 +114,7 @@ class NasaCMR(Catalogue):
                               out_file: str |  Path,
                               ):
         
-        next_day = queryset.start_year + timedelta(days=1)
+        next_day = date + timedelta(days=1)
 
         more_data = True
 
@@ -146,14 +123,16 @@ class NasaCMR(Catalogue):
             "features": []
         }
 
-
+        # iterate through pages of data
         while more_data:
             # Query parameters
             params = {
-                "short_name": product.shortname, #"MOD021KM",  #  MOD021KM - terra (original download in ~April) /  Use MYD021KM - Aqua (new download in May)
+                "short_name": product.short_name,
                 "page_size": queryset.page_size,
                 'temporal': f"{date.strftime('%Y-%m-%d')}T00:00:00Z,{next_day.strftime('%Y-%m-%d')}T00:00:00Z"
             }
+
+            headers = {}
 
             if queryset.version:
                 params.update({"version": self.queryset.version})
@@ -161,14 +140,15 @@ class NasaCMR(Catalogue):
             if getattr(queryset, "concept_id", None):
                 params.update(self.queryset.concept_id)
 
-            # if there is a previous response, check for additional available pagesm
+            # if there is a previous response, check for additional available pages
             # as recommended by CMR https://wiki.earthdata.nasa.gov/display/CMR/CMR+Harvesting+Best+Practices
             if 'response' in locals():
 
                 # if previous response has CMR-Search-After header, add details to request headers
-                if response.headers.get("CMR-Search-After"):
-                    params = params.update({
-                        "CMR-Search-After": response.headers.get("CMR-Search-After")
+                search_after = response.headers.get("CMR-Search-After", None)
+                if search_after:
+                    headers.update({
+                        "CMR-Search-After": search_after,
                     })
 
                 else:
@@ -176,7 +156,7 @@ class NasaCMR(Catalogue):
                     more_data = False
             
             # Request granule metadata
-            response = requests.get(self.url, params=params)
+            response = requests.get(self.url, params=params, headers=headers)
 
             if response.status_code != 200:
                 log.info(f"Error: {response.text}")
@@ -216,7 +196,7 @@ class NasaCMR(Catalogue):
                 return
 
             # Save as GeoJSON file
-            with open(TemporaryFile(dir=self.data_dir, suffix=".geojson"), "w") as f:
+            with open(out_file, "w") as f:
                 json.dump(geojson, f)
 
 
