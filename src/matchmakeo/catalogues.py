@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta
+import itertools
 import json
 from pathlib import Path
 import os
@@ -31,11 +32,8 @@ class Catalogue(ABC):
     def download(self,
                 product: Product,
                 queryset: Queryset,
-                db_connection: Database,
+                db: Database,
                 table:str,
-                download_to_file:bool = False,
-                download_to_db:bool = True,
-                insert_into_db:bool = True,
                 primary_key:str = "id",
                 ):
         pass
@@ -79,32 +77,34 @@ class NasaCMR(Catalogue):
 
 
         # Iterate through years and months
-        for year in range(queryset.start_year, queryset.end_year + 1):
-            for month in range(1, 13):
-                for day in range(1, 32):
-                    try:
-                        current_date = datetime(year, month, day)
-                    except ValueError:
-                        continue
+        for year, month, day in itertools.product(
+            range(queryset.start_year, queryset.end_year + 1),
+            range(1,13),
+            range(1,32)
+        ):
+            try:
+                current_date = datetime(year, month, day)
+            except ValueError:
+                continue
 
-                    if current_date > datetime.now():
-                        continue
+            if current_date > datetime.now():
+                continue
 
-                    if datetime(year, month, 1) > current_date:
-                        continue
+            if datetime(year, month, 1) > current_date:
+                continue
 
-                    # no data at start of project
-                    # TODO: is this universal for this catalogue?
-                    if year < 2000: # or (year == 2002 and month < 5):
-                        continue
+            # no data at start of project
+            # TODO: is this universal for this catalogue?
+            if year < 2000: # or (year == 2002 and month < 5):
+                continue
 
-                    out_file = f"{data_dir}/modis_footprints_{current_date.year}_{current_date.month}_{current_date.day}.geojson"
+            out_file = f"{data_dir}/modis_footprints_{current_date.year}_{current_date.month}_{current_date.day}.geojson"
 
-                    # if os.path.exists(out_file):
-                    #     print(f"File {out_file} already exists, skipping")
-                    #     continue
+            # if os.path.exists(out_file):
+            #     print(f"File {out_file} already exists, skipping")
+            #     continue
 
-                    self._download_single_date(product=product, queryset=queryset, date=current_date, out_file=out_file)
+            self._download_single_date(product=product, queryset=queryset, date=current_date, out_file=out_file)
 
 
     def _download_single_date(self,
