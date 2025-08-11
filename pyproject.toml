@@ -14,10 +14,10 @@ dependencies = [
     "geopandas>=1.1.1,<2",
     ]
 
-# [project.urls]
-# Homepage = "https://github.com/bas-quasar/matchmakeo"
-# Repository = "https://github.com/bas-quasar/matchmakeo.git"
-# Issues = "https://github.com/bas-quasar/matchmakeo/issues"
+[project.urls]
+Homepage = "https://github.com/bas-quasar/matchmakeo"
+Repository = "https://github.com/bas-quasar/matchmakeo.git"
+Issues = "https://github.com/bas-quasar/matchmakeo/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -34,5 +34,8 @@ postgis = ["psycopg[binary]>3"]
 spatialite = ["spatialite"]
 docs = ["mkdocs"]
 test = ["pytest"]
-dev = ["ruff"]
+dev = [
+    "pre-commit>=4.3.0",
+    "ruff",
+]
 diagram = ["py2puml"]
