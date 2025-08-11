@@ -1,4 +1,5 @@
 from abc import ABC
+from dataclasses import dataclass
 
 from sqlalchemy import create_engine
 from geoalchemy2 import Geometry
@@ -7,29 +8,19 @@ from matchmakeo.utils import setUpLogging
 
 log = setUpLogging(__name__)
 
+@dataclass
 class Database(ABC):
 
     """Abstract class for database connections.
     """
 
-    def __init__(
-            self,
-            database: str,
-            username: str,
-            password: str,
-            host: str = "localhost",
-            port: int = 5432,
-            dialect: str = None,
-            db_url: str = None,
-            ):
-        
-        self.database = database
-        self.username = username
-        self.password = password
-        self.host = host
-        self.port = port
-        self.db_url = db_url
-        self.dialect = dialect
+    database: str
+    username: str
+    password: str
+    host: str = "localhost"
+    port: int = 5432
+    dialect: str = None
+    db_url: str = None
         
     def _get_db_url(self):
         if self.db_url:
