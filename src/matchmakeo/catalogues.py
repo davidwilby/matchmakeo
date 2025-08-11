@@ -39,8 +39,9 @@ class Catalogue(ABC):
         pass
     
     def _check_queryset_type(self, queryset:Queryset):
-        if type(queryset) is not self.QuerysetType:
-            raise UserWarning(f"Queryset of type {self.queryset_type} is advised. Got {type(self.queryset)} instead. Some features may not work as intended.")
+        if type(queryset) is not self.queryset_type:
+            warnings.warn(f"Queryset of type {self.queryset_type} is advised. Got {type(queryset)} instead. Some features may not work as intended.",
+                          UserWarning)
 
 
 class NasaCMR(Catalogue):

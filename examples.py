@@ -7,14 +7,18 @@ from matchmakeo.product import Product
 from matchmakeo.catalogues import NasaCMR
 from matchmakeo.databases import PostGISDatabase
 
+# create a database object
 # create a catalogue object
 # create dataset and query object
-# create a database connection
 # run the download
 # 
 
 database = PostGISDatabase(
-    
+    username="postgres",
+    password="password",
+    database="matchmakeo",
+    host="localhost",
+    port=5432,
 )
 
 catalogue = NasaCMR(
@@ -36,7 +40,5 @@ product = Product(
 catalogue.download(
     product=product,
     queryset=queryset,
-    download_to_file=True,
-    download_to_db=False,
-    insert_into_db=False,
+    database=database
 )

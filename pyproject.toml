@@ -28,16 +28,24 @@ build-backend = "hatchling.build"
 requires = ["hatchling"]
 
 [project.optional-dependencies]
-cds = ["cdsapi"]
 earthengine = ["earthengine-api"]
-postgis = ["psycopg[binary]>3"]
+postgis = [
+    "psycopg[binary]>3",
+]
 spatialite = ["spatialite"]
 docs = ["mkdocs"]
 test = [
     "pytest",
+    "pytest-databases>=0.14.0",
 ]
 dev = [
     "pre-commit>=4.3.0",
     "ruff",
 ]
 diagram = ["py2puml"]
+
+
+# [tool.pytest.ini_options]
+# plugins = [
+#     "pytest_databases.docker.postgres",
+# ]
