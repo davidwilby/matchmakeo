@@ -16,7 +16,8 @@ def test_database_url():
     )
 
     dialect = "postgresql"
+    driver = "psycopg"
 
-    expected_str = f"{dialect}://{username}:{password}@{host}:{port}/{db_name}"
+    expected_str = f"{dialect}+{driver}://{username}:{password}@{host}:{port}/{db_name}"
 
-    assert db._get_db_url() == expected_str
+    assert db.url == expected_str
