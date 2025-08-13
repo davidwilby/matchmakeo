@@ -1,6 +1,9 @@
 notes.md
 
-#
+# project data store
+data/*
+
+# vs code config
 .vscode/*
 
 # pixi environments
