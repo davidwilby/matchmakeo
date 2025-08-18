@@ -70,7 +70,7 @@ class Database(ABC):
         else:
             log.info(f"No connection available yet. Trying to connect to {self.url}")
             self.create_engine()
-            self.connect()
+            return self.connect()
 
     def execute(self):
         pass

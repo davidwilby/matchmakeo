@@ -534,7 +534,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.3,<3" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "spatialite", marker = "extra == 'spatialite'" },
-    { name = "sqlalchemy" },
+    { name = "sqlalchemy", specifier = ">=2" },
 ]
 provides-extras = ["earthengine", "postgis", "spatialite", "docs", "test", "dev", "diagram"]
 

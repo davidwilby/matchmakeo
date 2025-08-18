@@ -33,12 +33,13 @@ queryset = NasaCMRQueryset(
 )
 
 product = Product(
-    short_name="MOD021KM",  #"MOD021KM",  #  MOD021KM - terra (original download in ~April) /  Use MYD021KM - Aqua (new download in May)
-    data_dir=Path("./data/modis_aqua"),
+    short_name="MOD021KM",#  MOD021KM - terra (original download in ~April) /  Use MYD021KM - Aqua (new download in May)
+    # data_dir=Path("./data/modis_aqua"),
 )
 
-catalogue.download(
+catalogue.download_footprints(
     product=product,
     queryset=queryset,
-    database=database
+    database=database,
+    table_name="modis_aqua",
 )

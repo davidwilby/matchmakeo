@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta
 import itertools
-import json
 from pathlib import Path
 import os
 from tempfile import TemporaryFile
 import warnings
 
+from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, DateTime, Float
+from geoalchemy2 import Geometry
 import requests
 
 from .databases import Database
@@ -30,7 +31,7 @@ class Catalogue(ABC):
         if queryset_type:
             self.queryset_type = queryset_type
 
-    def download(self,
+    def download_footprints(self,
                 product: Product,
                 queryset: Queryset,
                 db: Database,
@@ -65,19 +66,46 @@ class NasaCMR(Catalogue):
         if client_id is None:
             log.warning("No client_id set. Client ids are strongly encouraged by NASA CMR, we suggest using your name or research group's name, for example.")
 
-    def download(self,
+    def download_footprints(self,
                 product: Product,
                 queryset: Queryset,
                 database: Database,
+                table_name:str,
+                primary_key:str = "id",
                 ):
 
         self._check_queryset_type(queryset=queryset)
        
-        data_dir = product.data_dir
+        # data_dir = product.data_dir
 
-        if not os.path.exists(data_dir):
-            os.makedirs(data_dir, exist_ok=True)
+        # if not os.path.exists(data_dir):
+        #     os.makedirs(data_dir, exist_ok=True)
 
+
+
+        try:
+            connection = database.connect()
+        except ConnectionError:
+            raise ConnectionError(f"Database connection failed. Aborting.")
+
+        metadata = MetaData()
+        table = Table(table_name, metadata,
+            Column(primary_key, Integer, primary_key=True),
+            Column('name', String),
+            Column('geometry', Geometry('POLYGON', srid=4326)),
+            Column('producer_granule_id', String),
+            Column('day_night_flag', String),
+            Column('coordinate_system', String),
+            Column('time_start', DateTime),
+            Column('time_end', DateTime),
+            Column('updated', DateTime),
+            Column('granule_size', Float),
+            Column('collection_concept_id', String),
+            Column('title', String),
+        )
+
+        table.create(connection, checkfirst=True)
+        connection.commit()
 
         # Iterate through years and months
         for year, month, day in itertools.product(
@@ -103,7 +131,25 @@ class NasaCMR(Catalogue):
 
             granules = self._download_single_date(product=product, queryset=queryset, date=current_date)
             log.info(f"{len(granules)} found for {current_date}")
-            print(granules)
+            insertion = table.insert()
+            for granule in granules:
+                coords = granule[0][0]
+                geometry = f"POLYGON(({coords[0][0]} {coords[0][1]},{coords[1][0]} {coords[1][1]},{coords[2][0]} {coords[2][1]},{coords[3][0]} {coords[3][1]},{coords[4][0]} {coords[4][1]}))"
+                insertion = table.insert().values(
+                    name=granule[1]['id'],
+                    geometry=geometry,
+                    producer_granule_id=granule[1]['producer_granule_id'],
+                    day_night_flag=granule[1]['day_night_flag'],
+                    coordinate_system=granule[1]['coordinate_system'],
+                    time_start=granule[1]['time_start'],
+                    time_end=granule[1]['time_end'],
+                    updated=granule[1]['updated'],
+                    granule_size=granule[1]['granule_size'],
+                    collection_concept_id=granule[1]['collection_concept_id'],
+                    title=granule[1]['title'],
+                    )
+                connection.execute(insertion)
+                connection.commit()
 
 
     def _download_single_date(self,
@@ -166,7 +212,7 @@ class NasaCMR(Catalogue):
 
             more_data = len(granules["feed"]["entry"]) > 0
 
-            granules = []
+            footprints = []
             for g in granules["feed"]["entry"]:
 
                 coords = None
@@ -190,12 +236,12 @@ class NasaCMR(Catalogue):
                 #         "properties": props
                 #     })
 
-                granules.append((coords, props))
+                footprints.append((coords, props))
 
-            if not geojson["features"]:
-                print(f"No footprints found for {date}")
-                return
+            # if not geojson["features"]:
+            #     print(f"No footprints found for {date}")
+            #     return
             
-            return granules
+            return footprints
 
 

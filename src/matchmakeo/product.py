@@ -10,5 +10,5 @@ __all__ = [
 class Product:
 
     short_name: str
-    data_dir: str | Path = TemporaryDirectory(),
+    # data_dir: str | Path = TemporaryDirectory(),
 

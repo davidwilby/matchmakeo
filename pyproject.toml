@@ -9,7 +9,7 @@ requires-python = ">= 3.11"
 version = "0.1.0"
 dependencies = [
     "requests>=2.32.3,<3",
-    "sqlalchemy",
+    "sqlalchemy>=2",
     "geoalchemy2>=0.18.0,<0.19",
     "geopandas>=1.1.1,<2",
     ]
@@ -43,9 +43,3 @@ dev = [
     "ruff",
 ]
 diagram = ["py2puml"]
-
-
-# [tool.pytest.ini_options]
-# plugins = [
-#     "pytest_databases.docker.postgres",
-# ]
