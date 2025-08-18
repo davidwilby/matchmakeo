@@ -39,9 +39,11 @@ class Catalogue(ABC):
                 table:str,
                 primary_key:str = "id",
                 ):
-        pass
+        """Abstract method"""
+        self._check_queryset_type(queryset=queryset)
     
     def _check_queryset_type(self, queryset:Queryset):
+        """Raise UserWarning if queryset type does not match catalogue type."""
         if type(queryset) is not self.queryset_type:
             warnings.warn(f"Queryset of type {self.queryset_type} is advised. Got {type(queryset)} instead. Some features may not work as intended.",
                           UserWarning)
@@ -74,8 +76,7 @@ class NasaCMR(Catalogue):
                 table_name:str,
                 primary_key:str = "id",
                 ):
-
-        self._check_queryset_type(queryset=queryset)
+        super().download_footprints(product, queryset, database, table_name, primary_key)
        
         # data_dir = product.data_dir
 
