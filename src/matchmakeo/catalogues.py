@@ -9,6 +9,7 @@ import warnings
 from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, DateTime, Float
 from geoalchemy2 import Geometry
 import requests
+from tqdm import tqdm
 
 from .databases import Database
 from .product import Product
@@ -108,10 +109,13 @@ class NasaCMR(Catalogue):
         connection.commit()
 
         # Iterate through years and months
-        for year, month, day in itertools.product(
+        for year, month, day in tqdm(itertools.product(
             range(queryset.start_year, queryset.end_year + 1),
             range(1,13),
-            range(1,32)
+            range(1,32)),
+            desc="Days to query ",
+            unit=" day",
+            colour="green",
         ):
             try:
                 current_date = datetime(year, month, day)

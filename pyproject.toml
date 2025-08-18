@@ -1,7 +1,7 @@
 [project]
 authors = [
+    {name = "David Wilby", email = "dalby@bas.ac.uk"},
     {name = "Tom Kelly", email = "thokel@bas.ac.uk"},
-    {name = "David Wilby", email = "dalby@bas.ac.uk"}
 ]
 name = "matchmakeo"
 license = { file = "LICENSE" }
@@ -12,7 +12,8 @@ dependencies = [
     "sqlalchemy>=2",
     "geoalchemy2>=0.18.0,<0.19",
     "geopandas>=1.1.1,<2",
-    ]
+    "tqdm>=4.67.1",
+]
 
 [project.urls]
 Homepage = "https://github.com/bas-quasar/matchmakeo"
