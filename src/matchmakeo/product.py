@@ -10,5 +10,7 @@ __all__ = [
 class Product:
 
     short_name: str
+    table: str
     # data_dir: str | Path = TemporaryDirectory(),
+    extra_fields: dict
 

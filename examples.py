@@ -2,9 +2,11 @@
 
 from pathlib import Path
 
+from sqlalchemy import String
+
 from matchmakeo.queryset import NasaCMRQueryset
 from matchmakeo.product import Product
-from matchmakeo.catalogues import NasaCMR
+from matchmakeo.catalogues import NasaCMR, Field
 from matchmakeo.databases import PostGISDatabase
 
 # create a database object
@@ -35,11 +37,12 @@ queryset = NasaCMRQueryset(
 product = Product(
     short_name="MOD021KM",#  MOD021KM - terra (original download in ~April) /  Use MYD021KM - Aqua (new download in May)
     # data_dir=Path("./data/modis_aqua"),
+    table="modis_aqua",
+    extra_fields={'day_night_flag': Field('day_night_flag', String)}
 )
 
 catalogue.download_footprints(
     product=product,
     queryset=queryset,
     database=database,
-    table_name="modis_aqua",
 )

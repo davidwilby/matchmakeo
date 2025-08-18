@@ -6,7 +6,8 @@ import os
 from tempfile import TemporaryFile
 import warnings
 
-from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, DateTime, Float
+from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, DateTime, Float, Connection
+from sqlalchemy.sql.type_api import TypeEngine
 from geoalchemy2 import Geometry
 import requests
 from tqdm import tqdm
@@ -24,6 +25,21 @@ __all__ = [
     "NasaCMR",
 ]
 
+
+class Field(dict):
+    """Fields to be created in database."""
+    def __init__(self, column_name:str, column_type:TypeEngine):
+        self.name = column_name
+
+        if isinstance(column_type, TypeEngine) or issubclass(column_type, TypeEngine):
+            self.type = column_type
+        else:
+            warnings.warn(f"Custom field types must be SQL Alchemy types. Got {type(column_type)} for {column_name}.\n\
+                          Unexpected behaviour may occur.")
+            
+    def _as_column(self):
+        return Column(self.name, self.type)
+
 class Catalogue(ABC):
 
     def __init__(self, url, queryset_type: Queryset = None):
@@ -32,11 +48,17 @@ class Catalogue(ABC):
         if queryset_type:
             self.queryset_type = queryset_type
 
+        self.fields = {
+            'id': Field('id', String),
+            'geometry': Field('geometry', Geometry('POLYGON', srid=4326)),
+            'datetime_start': Field('datetime_start', DateTime),
+            'datetime_end': Field('datetime_end', DateTime),
+        }
+
     def download_footprints(self,
                 product: Product,
                 queryset: Queryset,
-                db: Database,
-                table:str,
+                database: Database,
                 primary_key:str = "id",
                 ):
         """Abstract method"""
@@ -47,6 +69,17 @@ class Catalogue(ABC):
         if type(queryset) is not self.queryset_type:
             warnings.warn(f"Queryset of type {self.queryset_type} is advised. Got {type(queryset)} instead. Some features may not work as intended.",
                           UserWarning)
+            
+    def _create_table(self, connection:Connection, product:Product, primary_key:str='pk'):
+
+        metadata = MetaData()
+        table = Table(product.table, metadata,
+            Column(primary_key, Integer, primary_key=True),
+            *[v._as_column() for v in {**self.fields, **product.extra_fields}.values()]
+        )
+
+        table.create(connection, checkfirst=True)
+        connection.commit()
 
 
 class NasaCMR(Catalogue):
@@ -69,14 +102,17 @@ class NasaCMR(Catalogue):
         if client_id is None:
             log.warning("No client_id set. Client ids are strongly encouraged by NASA CMR, we suggest using your name or research group's name, for example.")
 
+        # add fields specific to this catalogue
+        additional_fields = {}
+        self.fields.update(additional_fields)
+
     def download_footprints(self,
                 product: Product,
                 queryset: Queryset,
                 database: Database,
-                table_name:str,
                 primary_key:str = "id",
                 ):
-        super().download_footprints(product, queryset, database, table_name, primary_key)
+        super().download_footprints(product=product, queryset=queryset, database=database, primary_key=primary_key)
        
         # data_dir = product.data_dir
 
@@ -90,24 +126,7 @@ class NasaCMR(Catalogue):
         except ConnectionError:
             raise ConnectionError(f"Database connection failed. Aborting.")
 
-        metadata = MetaData()
-        table = Table(table_name, metadata,
-            Column(primary_key, Integer, primary_key=True),
-            Column('name', String),
-            Column('geometry', Geometry('POLYGON', srid=4326)),
-            Column('producer_granule_id', String),
-            Column('day_night_flag', String),
-            Column('coordinate_system', String),
-            Column('time_start', DateTime),
-            Column('time_end', DateTime),
-            Column('updated', DateTime),
-            Column('granule_size', Float),
-            Column('collection_concept_id', String),
-            Column('title', String),
-        )
-
-        table.create(connection, checkfirst=True)
-        connection.commit()
+        self._create_table(connection, product)
 
         # Iterate through years and months
         for year, month, day in tqdm(itertools.product(

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import os
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Engine, Connection
 from geoalchemy2 import Geometry
 
 from matchmakeo.utils import setUpLogging
@@ -50,7 +50,7 @@ class Database(ABC):
 
             return f"{dialect_driver}://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
     
-    def create_engine(self):
+    def create_engine(self) -> Engine:
         self.engine = create_engine(
             self.url,
             echo=False,
@@ -58,7 +58,7 @@ class Database(ABC):
         )
         return self.engine
     
-    def connect(self):
+    def connect(self) -> Connection:
         if self.engine:
             try:
                 self.connection = self.engine.connect()
