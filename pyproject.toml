@@ -13,6 +13,7 @@ dependencies = [
     "geoalchemy2>=0.18.0,<0.19",
     "geopandas>=1.1.1,<2",
     "tqdm>=4.67.1",
+    "shapely>=2.1.1",
 ]
 
 [project.urls]
@@ -27,6 +28,11 @@ exclude = ["tests*"]
 [build-system]
 build-backend = "hatchling.build"
 requires = ["hatchling"]
+
+[dependency-groups]
+dev = [
+    "geodatasets>=2024.8.0",
+]
 
 [project.optional-dependencies]
 earthengine = ["earthengine-api"]

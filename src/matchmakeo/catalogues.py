@@ -6,16 +6,17 @@ import os
 from tempfile import TemporaryFile
 import warnings
 
-from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, DateTime, Float, Connection
-from sqlalchemy.sql.type_api import TypeEngine
 from geoalchemy2 import Geometry
 import requests
+from shapely import Polygon
+from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, DateTime, Float, Connection
 from tqdm import tqdm
 
 from .databases import Database
+from .field import Field
 from .product import Product
 from .queryset import Queryset, NasaCMRQueryset
-from .utils import setUpLogging
+from .utils import coords_to_polygon, setUpLogging
 
 log = setUpLogging(__name__)
 
@@ -26,34 +27,15 @@ __all__ = [
 ]
 
 
-class Field(dict):
-    """Fields to be created in database."""
-    def __init__(self, column_name:str, column_type:TypeEngine):
-        self.name = column_name
-
-        if isinstance(column_type, TypeEngine) or issubclass(column_type, TypeEngine):
-            self.type = column_type
-        else:
-            warnings.warn(f"Custom field types must be SQL Alchemy types. Got {type(column_type)} for {column_name}.\n\
-                          Unexpected behaviour may occur.")
-            
-    def _as_column(self):
-        return Column(self.name, self.type)
-
 class Catalogue(ABC):
 
     def __init__(self, url, queryset_type: Queryset = None):
         self.url = url
+        self.fields = []
         
         if queryset_type:
             self.queryset_type = queryset_type
 
-        self.fields = {
-            'id': Field('id', String),
-            'geometry': Field('geometry', Geometry('POLYGON', srid=4326)),
-            'datetime_start': Field('datetime_start', DateTime),
-            'datetime_end': Field('datetime_end', DateTime),
-        }
 
     def download_footprints(self,
                 product: Product,
@@ -75,11 +57,14 @@ class Catalogue(ABC):
         metadata = MetaData()
         table = Table(product.table, metadata,
             Column(primary_key, Integer, primary_key=True),
-            *[v._as_column() for v in {**self.fields, **product.extra_fields}.values()]
+            *[f._as_column() for f in self.fields],
+            *[f._as_column() for f in product.extra_fields],
         )
 
         table.create(connection, checkfirst=True)
         connection.commit()
+
+        return table
 
 
 class NasaCMR(Catalogue):
@@ -103,8 +88,13 @@ class NasaCMR(Catalogue):
             log.warning("No client_id set. Client ids are strongly encouraged by NASA CMR, we suggest using your name or research group's name, for example.")
 
         # add fields specific to this catalogue
-        additional_fields = {}
-        self.fields.update(additional_fields)
+        additional_fields = [
+            Field('id', 'id', String),
+            Field('geometry', 'geometry', Geometry('POLYGON', srid=4326)),
+            Field('datetime_start', 'datetime_start', DateTime),
+            Field('datetime_end', 'datetime_end', DateTime),
+        ]
+        self.fields.extend(additional_fields)
 
     def download_footprints(self,
                 product: Product,
@@ -126,7 +116,7 @@ class NasaCMR(Catalogue):
         except ConnectionError:
             raise ConnectionError(f"Database connection failed. Aborting.")
 
-        self._create_table(connection, product)
+        table = self._create_table(connection, product)
 
         # Iterate through years and months
         for year, month, day in tqdm(itertools.product(
@@ -154,23 +144,19 @@ class NasaCMR(Catalogue):
                 continue
 
             granules = self._download_single_date(product=product, queryset=queryset, date=current_date)
+
             log.info(f"{len(granules)} found for {current_date}")
-            insertion = table.insert()
+
+            database.create_columns_from_footprint_props(table_name=product.table,
+                                                        catalogue_fields=self.fields,
+                                                        product_fields = product.extra_fields,
+                                                        props=[g[1] for g in granules],
+                                                        )
+
             for granule in granules:
-                coords = granule[0][0]
-                geometry = f"POLYGON(({coords[0][0]} {coords[0][1]},{coords[1][0]} {coords[1][1]},{coords[2][0]} {coords[2][1]},{coords[3][0]} {coords[3][1]},{coords[4][0]} {coords[4][1]}))"
                 insertion = table.insert().values(
                     name=granule[1]['id'],
-                    geometry=geometry,
-                    producer_granule_id=granule[1]['producer_granule_id'],
-                    day_night_flag=granule[1]['day_night_flag'],
-                    coordinate_system=granule[1]['coordinate_system'],
-                    time_start=granule[1]['time_start'],
-                    time_end=granule[1]['time_end'],
-                    updated=granule[1]['updated'],
-                    granule_size=granule[1]['granule_size'],
-                    collection_concept_id=granule[1]['collection_concept_id'],
-                    title=granule[1]['title'],
+                    geometry=coords_to_polygon(granule[0][0]),
                     )
                 connection.execute(insertion)
                 connection.commit()

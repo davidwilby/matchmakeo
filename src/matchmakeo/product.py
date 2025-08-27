@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -11,6 +11,5 @@ class Product:
 
     short_name: str
     table: str
-    # data_dir: str | Path = TemporaryDirectory(),
-    extra_fields: dict
+    extra_fields: list = field(default_factory=list)
 
