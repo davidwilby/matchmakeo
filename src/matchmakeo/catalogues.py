@@ -16,7 +16,7 @@ from .databases import Database
 from .field import Field
 from .product import Product
 from .queryset import Queryset, NasaCMRQueryset
-from .utils import coords_to_polygon, setUpLogging
+from .utils import coords_to_polygon, daterange, setUpLogging
 
 log = setUpLogging(__name__)
 
@@ -119,33 +119,15 @@ class NasaCMR(Catalogue):
         table = self._create_table(connection, product)
 
         # Iterate through years and months
-        for year, month, day in tqdm(itertools.product(
-            range(queryset.start_year, queryset.end_year + 1),
-            range(1,13),
-            range(1,32)),
+        for date in tqdm(daterange(queryset.start_date, queryset.end_date),
             desc="Days to query ",
             unit=" day",
             colour="green",
         ):
-            try:
-                current_date = datetime(year, month, day)
-            except ValueError:
-                continue
 
-            if current_date > datetime.now():
-                continue
+            granules = self._download_single_date(product=product, queryset=queryset, date=date)
 
-            if datetime(year, month, 1) > current_date:
-                continue
-
-            # no data at start of project
-            # TODO: is this universal for this catalogue?
-            if year < 2000: # or (year == 2002 and month < 5):
-                continue
-
-            granules = self._download_single_date(product=product, queryset=queryset, date=current_date)
-
-            log.info(f"{len(granules)} found for {current_date}")
+            log.info(f"{len(granules)} found for {date}")
 
             database.create_columns_from_footprint_props(table_name=product.table,
                                                         catalogue_fields=self.fields,

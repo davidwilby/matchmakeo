@@ -29,8 +29,8 @@ catalogue = NasaCMR(
 )
 
 queryset = NasaCMRQueryset(
-    start_year=2020,
-    end_year=2020,
+    start_date="2020-01-01",
+    end_date="2020-01-31",
     page_size=200,
 )
 

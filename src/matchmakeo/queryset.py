@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-
+from datetime import date
 
 __all__ = [
     "Queryset",
@@ -10,8 +10,8 @@ __all__ = [
 class Queryset:
     "Generic query parameters to be used in a catalogue request."
 
-    start_year: int
-    end_year: int
+    start_date: date
+    end_date: date
     #  spatial range
     page_size: int = 200
 
