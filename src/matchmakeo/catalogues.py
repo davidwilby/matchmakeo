@@ -103,13 +103,6 @@ class NasaCMR(Catalogue):
                 primary_key:str = "id",
                 ):
         super().download_footprints(product=product, queryset=queryset, database=database, primary_key=primary_key)
-       
-        # data_dir = product.data_dir
-
-        # if not os.path.exists(data_dir):
-        #     os.makedirs(data_dir, exist_ok=True)
-
-
 
         try:
             connection = database.connect()
