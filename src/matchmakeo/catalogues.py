@@ -15,7 +15,7 @@ from tqdm import tqdm
 from .databases import Database
 from .field import Field
 from .product import Product
-from .queryset import Queryset, NasaCMRQueryset
+from .queryset import Queryset, NasaCMRQueryset, EarthEngineQueryset
 from .utils import coords_to_polygon, daterange, setUpLogging
 
 log = setUpLogging(__name__)
@@ -29,8 +29,8 @@ __all__ = [
 
 class Catalogue(ABC):
 
-    def __init__(self, url, queryset_type: Queryset = None):
-        self.url = url
+    def __init__(self, queryset_type: Queryset = None):
+        
         self.fields = []
         
         if queryset_type:
@@ -82,7 +82,9 @@ class NasaCMR(Catalogue):
             client_id(str): Client ids are strongly encouraged by NASA CMR, we suggest using your name or research group.
         """
 
-        super().__init__(url=url, queryset_type=queryset_type)
+        self.url = url
+
+        super().__init__(queryset_type=queryset_type)
 
         if client_id is None:
             log.warning("No client_id set. Client ids are strongly encouraged by NASA CMR, we suggest using your name or research group's name, for example.")
@@ -230,3 +232,55 @@ class NasaCMR(Catalogue):
             return footprints
 
 
+class EarthEngine(Catalogue):
+    """Interface for downloading footprints from Google Earth Engine.
+
+    Requires the earthengine-api package, install with `pip install matchmakeo[earthengine]` or `pip install earthengine-api`.
+
+    """
+
+    def __init__(self, queryset_type:Queryset = EarthEngineQueryset):
+        try:
+            import ee
+        except ImportError:
+            log.error("Earth Engine Catalogue interface requires the earthengine-api package, install with `pip install matchmakeo[earthengine]` or `pip install earthengine-api`.")
+
+        super().__init__(queryset_type)
+
+    def download_footprints(self, product, queryset, database, project_name:str, primary_key = "id"):
+        super().download_footprints(product, queryset, database, primary_key)
+
+        import ee
+
+        try:
+            ee.Authenticate()
+            ee.Initialize(project=project_name) 
+            
+        except Exception as e:
+            log.error(f"Error initializing Earth Engine: {e}")
+            log.error("If this is your first time using Earth Engine, run 'earthengine authenticate' in your terminal")
+            raise(e)
+
+        # Create Sentinel collection
+        collection = ee.ImageCollection(product.name).filterDate(queryset.start_date, queryset.end_date)
+
+        # Get the collection info as a dictionary
+        collection_info = collection.getInfo()
+
+        # Extract the features (individual Sentinel-1 images)
+        features = collection_info.get('features', [])
+        print(f"Found {len(features)} Sentinel-1 images between {queryset.start_date} and {queryset.end_date}")
+    
+
+
+    def _download_single_date(self):
+        pass
+
+
+class JaxaGportal(Catalogue):
+    """Interface for downloading footprints from JAXA G-Portal.
+
+    Requires the gportal-python package install with `pip install matchmakeo[gportal]` or `pip install gportal`.
+
+    """
+    pass
